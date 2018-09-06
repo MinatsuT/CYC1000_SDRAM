@@ -1,0 +1,58 @@
+# A gitignore for Altera Quartus Prime.
+
+# ignore Quartus Prime generated folders
+*_sim
+db
+greybox_tmp
+incremental_db
+simulation
+testbench
+timing
+
+# ignore Quartus Prime generated files
+*_generation_script*
+*_inst.vhd
+*.bak
+*.cmp
+*.done
+*.eqn
+*.hex
+*.html
+*.jdi
+*.jpg
+*.mif
+*.pin
+*.pof
+*.ptf.*
+*.qar
+*.qarlog
+*.qws
+*.rpt
+*.smsg
+*.sof
+*.jic
+*.cdf
+*.sopc_builder
+*.summary
+*.tcl
+*.sld
+
+*~
+*example*
+*sopc_*
+
+# ignore Qsys generated folders
+.qsys_edit
+
+# ignore Eclipse generated folders
+.metadata
+RemoteSystemsTempFiles
+
+# ignore Eclipse generated files
+*.o
+*.elf
+*.map
+*.objdump
+*.a
+*.d
+*.settings.xml

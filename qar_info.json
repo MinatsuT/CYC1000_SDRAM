@@ -1,0 +1,7 @@
+{
+	"common_dir" : "E:/quartus/NIOS_CYC1000_10CL025/",
+	"acds_version" : "Version 18.0.0",
+	"platform" : "windows",
+	"os" : "Windows 10",
+	"qpf" : "cyc1000_nios.qpf"
+}
