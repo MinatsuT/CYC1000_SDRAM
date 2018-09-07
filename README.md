@@ -2,6 +2,7 @@
 A sample Quartus Prime project for CYC1000 works with on-board 8MB SDRAM. This project is based on the [reference NIOS design provided by TrenzElectronic](https://wiki.trenz-electronic.de/display/PD/NIOS:https://wiki.trenz-electronic.de/display/PD/NIOS), and fixed sdram related issues.
 
 ## Changes from original reference design
+- SDRAM related port directions (input or output) defined in the top module (top.v) are fixed.
 - A **phase shifted** PLL output and its output **pin** are added for SDRAM clock.
 - Sample Eclipse projects are included, which use SDRAM as a main memory.
 
