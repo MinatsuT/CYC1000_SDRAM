@@ -7,7 +7,7 @@ A sample Quartus Prime project for CYC1000 works with on-board 8MB SDRAM. This p
 - Sample Eclipse projects are included, which use SDRAM as a main memory.
 
 ## How to use
-1. Clone the project, and open **cyc1000_nios.qpf** by Quartus Prime 18.1 or newer.
+1. Clone the project, and open **cyc1000_nios.qpf** by Quartus Prime 18.0 or newer.
 2. Double click the **top** entity at the hierarchy window of the Quartus Prime, then read instructions in **top.v** file.
 3. According to the instructions, **Start Compile**. Then **program your CYC1000**.
 3. **Run Eclipse** from the menu [Tools->Nios II Software Build Tools for Eclipse].
