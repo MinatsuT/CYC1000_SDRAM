@@ -19,27 +19,27 @@ SPACE := $(empty) $(empty)
 
 #------------------------------------------------------------------------------
 #                         The adjust-path macro
-# 
-# If COMSPEC is defined, Make is launched from Windows through
-# Cygwin.  This adjust-path macro will call 'cygpath -u' on all
-# paths to ensure they are readable by Make.
 #
-# If COMSPEC is not defined, Make is launched from *nix, and no adjustment
-# is necessary
+# If Make is launched from Windows through
+# Windows Subsystem for Linux (WSL).  The adjust-path macro converts absolute windows 
+# paths into unix style paths (Example: c:/dir -> /c/dir). 
+# The adjust_path_mixed function converts WSL path to Windows path.
+# This will ensure paths are readable by GNU Make.
 #------------------------------------------------------------------------------
 
-ifndef COMSPEC
-ifdef ComSpec
-COMSPEC = $(ComSpec)
-endif # ComSpec
-endif # !COMSPEC
+UNAME = $(shell uname -r)
+ifeq ($(findstring Microsoft,$(UNAME)),Microsoft)
+	WINDOWS_EXE = .exe
+endif
 
-ifdef COMSPEC
-	adjust-path = $(subst $(SPACE),\$(SPACE),$(shell cygpath -u "$1"))
-	adjust-path-mixed = $(subst $(SPACE),\$(SPACE),$(shell cygpath -m "$1"))
-else
-	adjust-path = $(subst $(SPACE),\$(SPACE),$1)
-	adjust-path-mixed = $(subst $(SPACE),\$(SPACE),$1)
+eq = $(and $(findstring $(1),$(2)),$(findstring $(2),$(1)))
+
+ifdef WINDOWS_EXE 
+	adjust-path = $(if $1,$(shell wslpath "$1"),)
+	adjust-path-mixed = $(if $(call eq,$(shell echo $1 | head -c 5),/mnt/),$(shell echo $1 | sed 's/\/mnt\///g;s/\//:\//1'),$1)
+else # !WINDOWS_EXE
+	adjust-path = $1
+	adjust-path-mixed = $1
 endif
 
 #------------------------------------------------------------------------------
@@ -62,7 +62,7 @@ all:
 BSP_ROOT_DIR := .
 
 # Define absolute path to the root of the BSP.
-ABS_BSP_ROOT := $(call adjust-path-mixed,$(shell pwd))
+ABS_BSP_ROOT := $(shell pwd)
 
 # Stash all BSP object files here
 OBJ_DIR := ./obj
@@ -93,15 +93,15 @@ OBJ_DIR := ./obj
 
 # This following VERSION comment indicates the version of the tool used to 
 # generate this makefile. A makefile variable is provided for VERSION as well. 
-# ACDS_VERSION: 18.0
-ACDS_VERSION := 18.0
+# ACDS_VERSION: 20.1
+ACDS_VERSION := 20.1
 
 # This following BUILD_NUMBER comment indicates the build number of the tool 
 # used to generate this makefile. 
-# BUILD_NUMBER: 614
+# BUILD_NUMBER: 720
 
 SETTINGS_FILE := settings.bsp
-SOPC_FILE := ../../my_nios.sopcinfo
+SOPC_FILE := e:/quartus/CYC1000_SDRAM/my_nios.sopcinfo
 
 #-------------------------------------------------------------------------------
 #                             TOOL & COMMAND DEFINITIONS
@@ -112,10 +112,10 @@ SOPC_FILE := ../../my_nios.sopcinfo
 #-------------------------------------------------------------------------------
 
 # Archiver command. Creates library files. 
-AR = nios2-elf-ar
+AR = nios2-elf-ar$(WINDOWS_EXE)
 
 # Assembler command. Note that CC is used for .S files. 
-AS = nios2-elf-gcc
+AS = nios2-elf-gcc$(WINDOWS_EXE)
 
 # Custom flags only passed to the archiver. This content of this variable is 
 # directly passed to the archiver rather than the more standard "ARFLAGS". The 
@@ -145,10 +145,10 @@ BSP_CFLAGS_OPTIMIZATION = -O0
 BSP_CFLAGS_WARNINGS = -Wall
 
 # C compiler command. 
-CC = nios2-elf-gcc -xc
+CC = nios2-elf-gcc$(WINDOWS_EXE) -xc
 
 # C++ compiler command. 
-CXX = nios2-elf-gcc -xc++
+CXX = nios2-elf-gcc$(WINDOWS_EXE) -xc++
 
 # Command used to remove files during 'clean' target. 
 RM = rm -f
@@ -528,13 +528,13 @@ build_post_process :
 # Skip this check when clean is the only target
 ifneq ($(MAKECMDGOALS),clean)
 
-ifneq ($(wildcard $(SETTINGS_FILE)),$(SETTINGS_FILE))
+ifneq ($(wildcard $(call adjust-path,$(SETTINGS_FILE))),$(call adjust-path,$(SETTINGS_FILE)))
 $(warning Warning: BSP Settings File $(SETTINGS_FILE) could not be found.)
 endif
 
-Makefile: $(wildcard $(SETTINGS_FILE))
+Makefile: $(wildcard $(call adjust-path,$(SETTINGS_FILE)))
 	@$(ECHO) Makefile not up to date.
-	@$(ECHO) $(SETTINGS_FILE) has been modified since the BSP Makefile was generated.
+	@$(ECHO) $(call adjust-path,$(SETTINGS_FILE)) has been modified since the BSP Makefile was generated.
 	@$(ECHO)
 	@$(ECHO) Generate the BSP to update the Makefile, and then build again.
 	@$(ECHO)
@@ -547,13 +547,13 @@ Makefile: $(wildcard $(SETTINGS_FILE))
 	@$(ECHO)
 	@exit 1
 
-ifneq ($(wildcard $(SOPC_FILE)),$(SOPC_FILE))
+ifneq ($(wildcard $(call adjust-path,$(SOPC_FILE))),$(call adjust-path,$(SOPC_FILE)))
 $(warning Warning: SOPC File $(SOPC_FILE) could not be found.)
 endif
 
-public.mk: $(wildcard $(SOPC_FILE))
+public.mk: $(wildcard $(call adjust-path,$(SOPC_FILE)))
 	@$(ECHO) Makefile not up to date.
-	@$(ECHO) $(SOPC_FILE) has been modified since the BSP was generated.
+	@$(ECHO) $(call adjust-path,$(SOPC_FILE)) has been modified since the BSP was generated.
 	@$(ECHO)
 	@$(ECHO) Generate the BSP to update the Makefile, and then build again.
 	@$(ECHO)

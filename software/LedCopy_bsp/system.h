@@ -2,9 +2,9 @@
  * system.h - SOPC Builder system and BSP software package information
  *
  * Machine generated for CPU 'nios2_gen2_0' in SOPC Builder design 'my_nios'
- * SOPC Builder design path: ../../my_nios.sopcinfo
+ * SOPC Builder design path: e:/quartus/CYC1000_SDRAM/my_nios.sopcinfo
  *
- * Generated: Fri Sep 07 00:57:37 JST 2018
+ * Generated: Thu Jul 08 22:18:30 JST 2021
  */
 
 /*
@@ -341,7 +341,7 @@
 #define SYSID_QSYS_0_IRQ_INTERRUPT_CONTROLLER_ID -1
 #define SYSID_QSYS_0_NAME "/dev/sysid_qsys_0"
 #define SYSID_QSYS_0_SPAN 8
-#define SYSID_QSYS_0_TIMESTAMP 1536247618
+#define SYSID_QSYS_0_TIMESTAMP 1625749616
 #define SYSID_QSYS_0_TYPE "altera_avalon_sysid_qsys"
 
 

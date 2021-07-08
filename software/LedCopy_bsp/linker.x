@@ -2,9 +2,9 @@
  * linker.x - Linker script
  *
  * Machine generated for CPU 'nios2_gen2_0' in SOPC Builder design 'my_nios'
- * SOPC Builder design path: ../../my_nios.sopcinfo
+ * SOPC Builder design path: e:/quartus/CYC1000_SDRAM/my_nios.sopcinfo
  *
- * Generated: Fri Sep 07 00:57:37 JST 2018
+ * Generated: Thu Jul 08 22:18:30 JST 2021
  */
 
 /*

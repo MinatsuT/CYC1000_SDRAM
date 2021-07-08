@@ -38,82 +38,29 @@ ALT_LDFLAGS :=
 
 #------------------------------------------------------------------------------
 #                         The adjust-path macro
-# 
-# If COMSPEC/ComSpec is defined, Make is launched from Windows through
-# Cygwin.  The adjust-path macro converts absolute windows paths into
-# unix style paths (Example: c:/dir -> /c/dir). This will ensture
-# paths are readable by GNU Make.
 #
-# If COMSPEC/ComSpec is not defined, Make is launched from linux, and no 
-# adjustment is necessary
-#
+# If Make is launched from Windows through
+# Windows Subsystem for Linux (WSL).  The adjust-path macro converts absolute windows 
+# paths into unix style paths (Example: c:/dir -> /c/dir). 
+# The adjust_path_mixed function converts WSL path to Windows path.
+# This will ensure paths are readable by GNU Make.
 #------------------------------------------------------------------------------
 
-ifndef COMSPEC
-ifdef ComSpec
-COMSPEC = $(ComSpec)
-endif # ComSpec
-endif # COMSPEC
-
-ifdef COMSPEC # if Windows OS
-
-ifeq ($(MAKE_VERSION),3.81) 
-#
-# adjust-path/adjust-path-mixed for Mingw Gnu Make on Windows
-#
-# Example Usage:
-# $(call adjust-path,c:/aaa/bbb) => /c/aaa/bbb
-# $(call adjust-path-mixed,/c/aaa/bbb) => c:/aaa/bbb
-# $(call adjust-path-mixed,/cygdrive/c/aaa/bbb) => c:/aaa/bbb
-#
-
-#
-# adjust-path
-#  - converts back slash characters into forward slashes 
-#  - if input arg ($1) is an empty string then return the empty string
-#  - if input arg ($1) does not contain the string ":/", then return input arg
-#  - using sed, convert mixed path [c:/...] into mingw path [/c/...] 
-define adjust-path
-$(strip \
-$(if $1,\
-$(if $(findstring :/,$(subst \,/,$1)),\
-$(shell echo $(subst \,/,$1) | sed -e 's,^\([a-zA-Z]\):/,/\1/,'),\
-$(subst \,/,$1))))
-endef
-
-#
-# adjust-path-mixed
-#  - converts back slash characters into forward slashes 
-#  - if input arg ($1) is an empty string then return the empty string
-#  - if input arg ($1) does not begin with a forward slash '/' char, then 
-#    return input arg
-#  - using sed, convert mingw path [/c/...] or cygwin path [/c/cygdrive/...] 
-#    into a mixed path [c:/...] 
-define adjust-path-mixed 
-$(strip \
-$(if $1,\
-$(if $(findstring $(subst \,/,$1),$(patsubst /%,%,$(subst \,/,$1))),\
-$(subst \,/,$1),\
-$(shell echo $(subst \,/,$1) | sed -e 's,^/cygdrive/\([a-zA-Z]\)/,\1:/,' -e 's,^/\([a-zA-Z]\)/,\1:/,'))))
-endef
-
-else # MAKE_VERSION != 3.81 (MAKE_VERSION == 3.80 or MAKE_VERSION == 3.79) 
-#
-#  adjust-path for Cygwin Gnu Make
-# $(call adjust-path,c:/aaa/bbb) = /cygdrive/c/aaa/bbb
-# $(call adjust-path-mixed,/cygdrive/c/aaa/bbb) = c:/aaa/bbb
-#
-adjust-path = $(if $1,$(shell cygpath -u "$1"),)
-adjust-path-mixed = $(if $1,$(shell cygpath -m "$1"),)
+UNAME = $(shell uname -r)
+ifeq ($(findstring Microsoft,$(UNAME)),Microsoft)
+	WINDOWS_EXE = .exe
 endif
 
-else # !COMSPEC
+eq = $(and $(findstring $(1),$(2)),$(findstring $(2),$(1)))
 
-adjust-path = $1
-adjust-path-mixed = $1
-
-endif # COMSPEC
-
+ifdef WINDOWS_EXE 
+	adjust-path = $(if $1,$(shell wslpath "$1"),)
+	adjust-path-mixed = $(if $(call eq,$(shell echo $1 | head -c 5),/mnt/),$(shell echo $1 | sed 's/\/mnt\///g;s/\//:\//1'),$1)
+	
+else # !WINDOWS_EXE
+	adjust-path = $1
+	adjust-path-mixed = $1
+endif
 
 #vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 #                           GENERATED SETTINGS START                         v
@@ -129,12 +76,12 @@ BUILD_CONFIGS := default
 
 # This following VERSION comment indicates the version of the tool used to 
 # generate this makefile. A makefile variable is provided for VERSION as well. 
-# ACDS_VERSION: 18.0
-ACDS_VERSION := 18.0
+# ACDS_VERSION: 20.1
+ACDS_VERSION := 20.1
 
 # This following BUILD_NUMBER comment indicates the build number of the tool 
 # used to generate this makefile. 
-# BUILD_NUMBER: 614
+# BUILD_NUMBER: 720
 
 # Define path to the application ELF. 
 # It may be used by the makefile fragments so is defined before including them. 
@@ -228,17 +175,17 @@ ifeq ($(BSP_ROOT_DIR),)
 $(error Edit Makefile and provide a value for BSP_ROOT_DIR)
 endif
 
-ifeq ($(wildcard $(BSP_ROOT_DIR)),)
-$(error BSP directory does not exist: $(BSP_ROOT_DIR))
+ifeq ($(wildcard $(call adjust-path,$(BSP_ROOT_DIR))),)
+$(error BSP directory does not exist: $(call adjust-path,$(BSP_ROOT_DIR))))
 endif
 
 # Define absolute path to the root of the BSP.
-ABS_BSP_ROOT_DIR := $(call adjust-path-mixed,$(shell cd "$(BSP_ROOT_DIR)"; pwd))
+ABS_BSP_ROOT_DIR := $(shell cd "$(call adjust-path,$(BSP_ROOT_DIR))"; pwd)
 
 # Include makefile fragments.  Define variable ALT_LIBRARY_ROOT_DIR before
 # including each makefile fragment so that it knows the path to itself.
-BSP_INCLUDE_FILE := $(BSP_ROOT_DIR)/public.mk
-ALT_LIBRARY_ROOT_DIR := $(BSP_ROOT_DIR)
+BSP_INCLUDE_FILE := $(call adjust-path,$(BSP_ROOT_DIR)/public.mk)
+ALT_LIBRARY_ROOT_DIR := $(call adjust-path,$(BSP_ROOT_DIR))
 include $(BSP_INCLUDE_FILE)
 # C2H will need this to touch the BSP public.mk and avoid the sopc file 
 # out-of-date error during a BSP make
@@ -292,10 +239,12 @@ endif
 APP_LDDEPS := $(ALT_LDDEPS) $(LDDEPS)
 
 # Take lists and add required prefixes.
-APP_INC_DIRS := $(addprefix -I, $(ALT_INCLUDE_DIRS) $(APP_INCLUDE_DIRS) $(INC_DIRS))
+APP_DIRS := $(ALT_INCLUDE_DIRS) $(APP_INCLUDE_DIRS) $(INC_DIRS)
+APP_INC_DIRS := $(addprefix -I, $(foreach 1,$(APP_DIRS),$(call adjust-path-mixed,$(1))))
 ASM_INC_PREFIX := -Wa,-I
-APP_ASM_INC_DIRS := $(addprefix $(ASM_INC_PREFIX), $(ALT_INCLUDE_DIRS) $(APP_INCLUDE_DIRS) $(INC_DIRS))
-APP_LIB_DIRS := $(addprefix -L, $(ALT_LIBRARY_DIRS) $(APP_LIBRARY_DIRS) $(LIB_DIRS))
+APP_ASM_INC_DIRS := $(addprefix $(ASM_INC_PREFIX), $(foreach 1,$(APP_DIRS),$(call adjust-path-mixed,$(1))))
+LIBRARY_DIRS := $(ALT_LIBRARY_DIRS) $(APP_LIBRARY_DIRS) $(LIB_DIRS)
+APP_LIB_DIRS := $(addprefix -L, $(foreach 1,$(LIBRARY_DIRS),$(call adjust-path-mixed,$(1))))
 APP_LIBS := $(addprefix -l, $(ALT_LIBRARY_NAMES) $(APP_LIBRARY_NAMES) $(LIBS))
 
 ifneq ($(AVOID_NIOS2_GCC3_OPTIONS),)
@@ -356,14 +305,14 @@ APP_ASFLAGS := $(APP_ASM_INC_DIRS) \
 APP_LDFLAGS := $(APP_LDFLAGS_USER)
 
 ifneq ($(LINKER_SCRIPT),)
-APP_LDFLAGS += -T'$(LINKER_SCRIPT)'
+APP_LDFLAGS += -T'$(call adjust-path-mixed,$(LINKER_SCRIPT))'
 endif
 
 ifneq ($(AVOID_NIOS2_GCC3_OPTIONS),)
 
 # Avoid Nios II GCC 3.x options.
 ifneq ($(CRT0),)
-APP_LDFLAGS += $(CRT0)
+APP_LDFLAGS += $(call adjust-path-mixed,$(CRT0))
 endif
 
 # The equivalent of the -msys-lib option is provided
@@ -374,10 +323,10 @@ else # !AVOID_NIOS2_GCC3_OPTIONS
 
 # Use Nios II GCC 3.x options.
 ifneq ($(CRT0),)
-APP_LDFLAGS += -msys-crt0='$(CRT0)'
+APP_LDFLAGS += -msys-crt0='$(call adjust-path-mixed,$(CRT0))'
 endif
 ifneq ($(SYS_LIB),)
-APP_LDFLAGS += -msys-lib=$(SYS_LIB)
+APP_LDFLAGS += -msys-lib=$(call adjust-path-mixed,$(SYS_LIB))
 endif
 
 endif # !AVOID_NIOS2_GCC3_OPTIONS
@@ -444,7 +393,7 @@ RUNTIME_ROOT_DIR := $(CONFIG_OBJ_DIR)/runtime
 # mem_init.mk is a generated makefile fragment. This file defines all targets
 # used to generate HDL initialization simulation files and pre-initialized
 # onchip memory files.
-MEM_INIT_FILE :=  $(BSP_ROOT_DIR)/mem_init.mk
+MEM_INIT_FILE :=  $(call adjust-path,$(BSP_ROOT_DIR)/mem_init.mk)
 include $(MEM_INIT_FILE)
 
 # Create list of object files to be built using the list of source files.
@@ -571,8 +520,8 @@ endif
 
 # Patch the Elf with the absolute path to the Quartus Project Directory
 ifneq ($(QUARTUS_PROJECT_DIR),)
-ABS_QUARTUS_PROJECT_DIR := $(call adjust-path-mixed,$(shell cd "$(QUARTUS_PROJECT_DIR)"; pwd))
-ELF_PATCH_FLAG += --quartus_project_dir "$(ABS_QUARTUS_PROJECT_DIR)"
+ABS_QUARTUS_PROJECT_DIR := $(shell cd "$(call adjust-path,$(QUARTUS_PROJECT_DIR))"; pwd)
+ELF_PATCH_FLAG += --quartus_project_dir "$(call adjust-path-mixed,$(ABS_QUARTUS_PROJECT_DIR))"
 endif
 
 # Patch the Elf and download args with the JDI_FILE if specified
@@ -583,7 +532,7 @@ endif
 
 # Patch the Elf with the SOPCINFO_FILE if specified
 ifneq ($(wildcard $(SOPCINFO_FILE)),)
-ELF_PATCH_FLAG += --sopcinfo $(SOPCINFO_FILE)
+ELF_PATCH_FLAG += --sopcinfo $(call adjust-path-mixed,$(SOPCINFO_FILE))
 endif
 
 # Use the DOWNLOAD_CABLE variable to specify which JTAG cable to use. 
@@ -627,11 +576,11 @@ DEFAULT_DOWNLOAD := nios2-download
 endif
 
 ifeq ($(DEFAULT_FLASHPROG),)
-DEFAULT_FLASHPROG := nios2-flash-programmer
+DEFAULT_FLASHPROG := nios2-flash-programmer$(WINDOWS_EXE)
 endif
 
 ifeq ($(DEFAULT_ELFPATCH),)
-DEFAULT_ELFPATCH := nios2-elf-insert
+DEFAULT_ELFPATCH := nios2-elf-insert$(WINDOWS_EXE)
 endif
 
 ifeq ($(DEFAULT_RM),)
@@ -656,23 +605,23 @@ CROSS_COMPILE := $(DEFAULT_CROSS_COMPILE)
 endif
 
 ifeq ($(origin CC),default)
-CC := $(CROSS_COMPILE)gcc -xc
+CC := $(CROSS_COMPILE)gcc$(WINDOWS_EXE) -xc
 endif
 
 ifeq ($(origin CXX),default)
-CXX := $(CROSS_COMPILE)gcc -xc++
+CXX := $(CROSS_COMPILE)gcc$(WINDOWS_EXE) -xc++
 endif
 
 ifeq ($(origin AS),default)
-AS := $(CROSS_COMPILE)gcc
+AS := $(CROSS_COMPILE)gcc$(WINDOWS_EXE)
 endif
 
 ifeq ($(origin AR),default)
-AR := $(CROSS_COMPILE)ar
+AR := $(CROSS_COMPILE)ar$(WINDOWS_EXE)
 endif
 
 ifeq ($(origin LD),default)
-LD := $(CROSS_COMPILE)g++
+LD := $(CROSS_COMPILE)g++$(WINDOWS_EXE)
 endif
 
 ifeq ($(origin RM),default)
@@ -680,7 +629,7 @@ RM := $(DEFAULT_RM)
 endif
 
 ifeq ($(NM),)
-NM := $(CROSS_COMPILE)nm
+NM := $(CROSS_COMPILE)nm$(WINDOWS_EXE)
 endif
 
 ifeq ($(CP),)
@@ -688,11 +637,11 @@ CP := $(DEFAULT_CP)
 endif
 
 ifeq ($(OBJDUMP),)
-OBJDUMP := $(CROSS_COMPILE)objdump
+OBJDUMP := $(CROSS_COMPILE)objdump$(WINDOWS_EXE)
 endif
 
 ifeq ($(OBJCOPY),)
-OBJCOPY := $(CROSS_COMPILE)objcopy
+OBJCOPY := $(CROSS_COMPILE)objcopy$(WINDOWS_EXE)
 endif
 
 ifeq ($(STACKREPORT),)
@@ -861,10 +810,10 @@ help :
 
 # Handy rule to skip making libraries and just make application.
 .PHONY : app
-app : $(ELF)
+app : $(call adjust-path,$(ELF))
 
 ifeq ($(CREATE_OBJDUMP), 1)
-app : $(OBJDUMP_NAME)
+app : $(call adjust-path,$(OBJDUMP_NAME))
 endif
 
 ifeq ($(CREATE_ELF_DERIVED_FILES),1)
@@ -912,7 +861,7 @@ $(FORCE_REBUILD_DEP_LIST):
 
 $(APP_OBJS): $(wildcard $(CONFIG_OBJ_DIR)/$(FORCE_REBUILD_DEP)) $(wildcard $(addsuffix /$(FORCE_REBUILD_ALL_DEP), . $(ALT_LIBRARY_DIRS)))
 
-$(ELF): $(wildcard $(addsuffix /$(FORCE_RELINK_DEP), $(CONFIG_OBJ_DIR) $(ALT_LIBRARY_DIRS)))
+$(call adjust-path,$(ELF)): $(wildcard $(addsuffix /$(FORCE_RELINK_DEP), $(CONFIG_OBJ_DIR) $(ALT_LIBRARY_DIRS)))
 
 
 # Clean just the application.
@@ -952,14 +901,14 @@ clean_all : clean mem_init_clean clean_libs
 
 # Include the dependency files unless the make goal is performing a clean
 # of the application.
-ifneq ($(firstword $(MAKECMDGOALS)),clean)
-ifneq ($(firstword $(MAKECMDGOALS)),clean_all)
+ifeq ($(firstword $(MAKECMDGOALS)),)
+ifeq ($(firstword $(MAKECMDGOALS)),app)
 -include $(APP_DEPS)
 endif
 endif
 
 .PHONY : download-elf
-download-elf : $(ELF)
+download-elf : $(call adjust-path,$(ELF))
 	@if [ "$(DOWNLOAD)" = "none" ]; \
 	then \
 		$(ECHO) Downloading $(ELF) not supported; \
@@ -1000,10 +949,10 @@ $(PROGRAM_FLASH_TARGET) : flash
 # Rules for simulating with an HDL Simulator [QSYS only]
 ifeq ($(QSYS),1)
 #Create a top level modelsim script load_sim.tcl to source generate msim_setup.tcl and copy mem initialization files
-CREATE_TOP_SIM_SCRIPT := alt-create-top-sim-script
+CREATE_TOP_SIM_SCRIPT := alt-create-top-sim-script$(WINDOWS_EXE)
 
 ifeq ($(VSIM),)
-VSIM_EXE := "$(if $(VSIM_DIR),$(VSIM_DIR)/,)vsim"
+VSIM_EXE := $(call adjust-path,"$(if $(VSIM_DIR),$(VSIM_DIR)/,)vsim")$(WINDOWS_EXE)
 ifeq ($(ENABLE_VSIM_GUI),1)
 VSIM := $(VSIM_EXE) -gui
 else
@@ -1033,12 +982,12 @@ else
 ABS_MEM_INIT_DESCRIPTOR_FILE := $(call adjust-path-mixed,$(shell pwd))/$(MEM_INIT_DESCRIPTOR_FILE)
 endif
 
-$(LOAD_SIM_SCRIPT): $(SPD) $(MEM_INIT_DESCRIPTOR_FILE)
+$(LOAD_SIM_SCRIPT): $(call adjust-path,$(SPD)) $(MEM_INIT_DESCRIPTOR_FILE)
 ifeq ($(SPD),)
 	$(error No SPD file specified. Ensure QUARTUS_PROJECT_DIR variable is set)
 endif
 	@$(MKDIR) $(SIM_SCRIPT_DIR)
-	$(CREATE_TOP_SIM_SCRIPT) --spd=$(SPD) --mem-init-spd=$(abspath $(MEM_INIT_DESCRIPTOR_FILE)) --output-directory=$(SIM_SCRIPT_DIR)
+	$(CREATE_TOP_SIM_SCRIPT) --spd=$(SPD) --mem-init-spd=$(call adjust-path-mixed,$(abspath $(MEM_INIT_DESCRIPTOR_FILE))) --output-directory=$(SIM_SCRIPT_DIR)
 
 VSIM_COMMAND = \
 	cd $(dir $(LOAD_SIM_SCRIPT)) && \
@@ -1060,7 +1009,7 @@ endif # QSYS == 1
 #                         ELF TARGET RULE
 #------------------------------------------------------------------------------
 # Rule for constructing the executable elf file.
-$(ELF) : $(APP_OBJS) $(LINKER_SCRIPT) $(APP_LDDEPS)
+$(call adjust-path,$(ELF)) : $(APP_OBJS) $(LINKER_SCRIPT) $(APP_LDDEPS)
 	@$(ECHO) Info: Linking $@
 	$(LD) $(APP_LDFLAGS) $(APP_CFLAGS) -o $@ $(filter-out $(CRT0),$(APP_OBJS)) $(APP_LIBS) $(APP_BSP_DEP_LIBS)
 ifneq ($(DISABLE_ELFPATCH),1)
@@ -1070,7 +1019,7 @@ ifneq ($(DISABLE_STACKREPORT),1)
 	@bash -c "$(STACKREPORT) $@"
 endif
 
-$(OBJDUMP_NAME) : $(ELF)
+$(call adjust-path,$(OBJDUMP_NAME)) : $(call adjust-path,$(ELF))
 	@$(ECHO) Info: Creating $@
 	$(OBJDUMP) $(OBJDUMP_FLAGS) $< >$@
 
